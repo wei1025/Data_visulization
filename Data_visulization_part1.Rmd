@@ -113,11 +113,110 @@ ggplot(autism, aes(x=age2, y=vsae, colour=bestest2)) +
 ```
 
 #make the graph become smooth and show a linear model (geom_smooth(se = F, method = "lm"))
-# (This way they can also show variability in the figure )
+This way they can also show variability in the figure 
 ```{r}
 ggplot(autism, aes(x=age2, y=vsae, colour=bestest2)) + 
   geom_point(alpha=0.1) + geom_line(aes(group=childid), alpha=0.1) + 
   geom_smooth(se=F, method = "lm") +
   scale_y_log10()
 ```
+
+#make a box plot--> use geom_boxplot
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, colour=bestest2)) + 
+  geom_boxplot() + scale_y_log10()
+
+```
+
+# make a box plot --> plot by groups  x=factor()
+```{r}
+ggplot(autism, aes(x=factor(age2), y=vsae, colour=bestest2)) + 
+  geom_boxplot() + scale_y_log10()
+
+```
+
+## a new example setup
+```{r}
+library(readr)
+fly <- read_csv("~/Desktop/SISBID-2016-master/data/flying-etiquette.csv")
+glimpse(fly)
+```
+
+# How many unique varibles for a certain question
+```{r}
+unique(fly$`How often do you travel by plane?`)
+```
+
+
+#present a sorted catogries(make a factor)
+```{r}
+fly$`How often do you travel by plane?` <- 
+  factor(fly$`How often do you travel by plane?`, levels=c(
+    "Never","Once a year or less","Once a month or less",
+    "A few times per month","A few times per week","Every day"))
+ggplot(fly, aes(x=`How often do you travel by plane?`)) + geom_bar() + coord_flip()
+```
+
+## remember to read ggplot cheetsheet
+http://www.rstudio.com/wp-content/uploads/2015/12/ggplot2-cheatsheet-2.0.pdf)
+
+# geom_rug and fix the plot ratio between X and Y
+For a scatterplot, or density, indicating values of data on that variable. 
+```{r}
+p <- ggplot(mtcars, aes(wt, mpg))
+p + geom_point()
+p + geom_point() + coord_fixed()
+p + geom_point() + theme(aspect.ratio = 1)
+```
+
+
+# generate a box plot based on one variable; for the make boxplot, seperate them based on another variable(facet_wrap tells use a new variable to seperate)
+```{r}
+ggplot(fly_sub, aes(x=`Do you ever recline your seat when you fly?`)) +
+  geom_bar() + 
+  facet_wrap(~`Is itrude to recline your seat on a plane?`, ncol=3) +
+  coord_flip()
+```
+
+# modify the above chart(add color)
+```{r}
+ggplot(fly_sub, aes(x=`Do you ever recline your seat when you fly?`, fill=`Is itrude to recline your seat on a plane?`)) +
+  geom_bar() +
+ coord_flip()
+```
+
+# modify the above chart(change position to dodge)
+```{r}
+ggplot(fly_sub, aes(x=`Do you ever recline your seat when you fly?`, fill=`Is itrude to recline your seat on a plane?`)) +
+  geom_bar(position = "dodge") +
+ coord_flip()
+```
+
+# Use facets to seperate the chart by different variable
+```{r}
+fly_sub$Age <- factor(fly_sub$Age, levels=c("18-29","30-44","45-60","> 60"))
+ggplot(fly_sub, aes(x=`In general, is itrude to bring a baby on a plane?`)) + 
+  geom_bar() + coord_flip() + facet_grid(Age~Gender)
+```
+
+# Modify the above chart(by adding color)
+```{r}
+fly_sub$Age <- factor(fly_sub$Age, levels=c("18-29","30-44","45-60","> 60"))
+ggplot(fly_sub, aes(x=`In general, is itrude to bring a baby on a plane?`, 
+                    fill=Gender)) + 
+  geom_bar() + coord_flip() + facet_grid(Age~Gender)
+```
+
+#color blind-proofing
+setup
+```{r fig.show='hide'}
+library(scales)
+library(dichromat)
+clrs <- hue_pal()(3)
+p + theme(legend.position = "none")
+clrs <- dichromat(hue_pal()(3))
+p + scale_fill_manual("", values=clrs) + theme(legend.position = "none")
+```
+
+
 
