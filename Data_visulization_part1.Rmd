@@ -1,0 +1,123 @@
+---
+title: "Data_visualization"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+installing package(install directly from github)
+```{r}
+install.packages("ggenealogy")
+source("https://bioconductor.org/biocLite.R")
+biocLite("ggbio")
+devtools::install_github("heike/gglogo")
+devtools::install_github("haleyjeppson/ggmosaic")
+glimpse(autism)
+```
+
+load the library
+```{r}
+```{r echo=FALSE}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(HLMdiag)
+library(RColorBrewer)
+library(gridExtra)
+library(dichromat)
+library(xkcd)
+```
+
+#Looking at a data
+```{r}
+glimpse(autism)
+
+```
+
+#plotting point data  (geon_point)
+ase--> map
+geom_point ---> use point in the map
+```{r}
+ggplot(autism, aes(x=age2, y=vsae)) + 
+  geom_point()
+```
+
+#Make a jittering point(geom_jitter)
+```{r}
+ggplot(autism, aes(x=age2, y=vsae)) + 
+  geom_jitter()
+
+```
+
+#Add lines to a point data(geom_point + geom_line) 
+```{r}
+ggplot(autism, aes(x=age2, y=vsae)) + 
+  geom_point() + geom_line()
+
+```
+
+#When make map, group by a certain variable, then make map (group = )
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, group=childid)) + 
+  geom_point() + geom_line()
+
+```
+
+#too much ink--> use geom_line(alpha = )
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, group=childid)) + 
+  geom_point() + geom_line(alpha=0.5)
+
+```
+
+### Log scale y? --> use scale_y_log10
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, group=childid)) + 
+  geom_point() + geom_line(alpha=0.5) + scale_y_log10()
+```
+
+# color different groups by a certain variable--> color = a name of a variable
+```{r}
+``{r}
+ggplot(autism, aes(x=age2, y=vsae, group=childid, colour=bestest2)) + 
+  geom_point() + geom_line(alpha=0.5) + scale_y_log10()
+```
+
+#make the graph become smooth
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, colour=bestest2)) + 
+  geom_point(alpha=0.1) + geom_line(aes(group=childid), alpha=0.1) + 
+  geom_smooth(se=F) +
+  scale_y_log10()
+
+```
+
+#make the graph become smooth and show a linear model (geom_smooth(se = F, method = "lm"))
+# (This way they can also show variability in the figure )
+```{r}
+ggplot(autism, aes(x=age2, y=vsae, colour=bestest2)) + 
+  geom_point(alpha=0.1) + geom_line(aes(group=childid), alpha=0.1) + 
+  geom_smooth(se=F, method = "lm") +
+  scale_y_log10()
+```
+
