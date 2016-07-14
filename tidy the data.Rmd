@@ -1,0 +1,219 @@
+---
+title: "tidy the data"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+original setup
+```{r echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+
+```{r echo=FALSE}
+library(knitr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(HLMdiag)
+library(RColorBrewer)
+library(gridExtra)
+library(broom)
+```
+
+Setup the data
+```{r, echo = FALSE}
+data(french_fries, package = "reshape2")
+kable(head(french_fries, 4), format = "markdown", row.names = F)
+```
+
+```{r, echo=FALSE, results='asis'}
+kable(head(french_fries), format = "markdown", row.names = FALSE)
+```
+
+# Part1: Gather and spread
+
+# Use "Gather" function(according to one key, and gather their value)
+
+```{r}
+ff_long <- gather(french_fries, key = variable, value = 
+                    rating, potato:painty)
+head(ff_long)
+```
+
+# Use"Spread" function(convert long sheet to wide sheet; can show several variable)
+
+We use the **spread** function from tidyr to do this:
+
+```{r}
+french_fries_wide <- spread(ff_long, key = variable, 
+                            value = rating)
+
+head(french_fries_wide)
+```
+
+# rating on different scales
+```{r}
+ff.m <- french_fries %>% 
+  gather(type, rating, -subject, -time, -treatment, -rep)
+head(ff.m)
+#note: we can gather information here
+```
+
+```{r, fig.height=2, fig.width=8}
+ggplot(data=ff.m, aes(x=rating)) + geom_histogram(binwidth=2) + 
+  facet_wrap(~type, ncol=5) 
+#note: use facet to seperate different tasting type
+```
+
+## Side-By-Side Boxplots
+
+```{r fig.width=8, fig.height=5}
+ggplot(data=ff.m, aes(x=type, y=rating, fill=type)) + 
+  geom_boxplot()
+```
+
+#check the replicate
+```{r}
+head(ff.m)
+ff.s <- ff.m %>% spread(rep, rating)
+head(ff.s)
+```
+
+```{r, fig.show='hold', fig.align='default', fig.height=4, fig.width=4}
+ggplot(data=ff.s, aes(x=`1`, y=`2`)) + geom_point() +
+  theme(aspect.ratio=1) + xlab("Rep 1") + ylab("Rep 2")
+ggplot(data=ff.s, aes(x=`1`, y=`2`)) + geom_point() +
+  theme(aspect.ratio=1) + xlab("Rep 1") + ylab("Rep 2") + 
+  scale_x_sqrt() + scale_y_sqrt()
+```
+
+#Check the replicate seperately, based on different information(use facet_wrap)
+
+```{r, echo=FALSE, eval=FALSE}
+ggplot(data=ff.s, aes(x=`1`, y=`2`)) + geom_point() +
+  theme(aspect.ratio=1) + 
+  xlab("Rep 1") + ylab("Rep 2") + facet_wrap(~type, ncol=5)
+#Note: here facet_wrap can seperate the plot by tasting types
+ggplot(data=ff.s, aes(x=`1`, y=`2`)) + geom_point() +
+  theme(aspect.ratio=1) + 
+  xlab("Rep 1") + ylab("Rep 2") + facet_grid(treatment~type)
+#Note: here facet_wrap can seperate the plot by tasting type and treatment type
+```
+
+Another example setup
+```{r}
+billboard <- read.csv("~/Desktop/SISBID-2016-master/data/billboard.csv")
+glimpse(billboard)
+```
+
+clean the data use gather function(change it into one long form)
+```{r, echo=FALSE, fig.height=3}
+long_billboard <- gather(billboard, key = week, value = rank, X1:X76)
+#use gather to convert it into a long form(put all weeks together into week column)
+long_billboard$week <- as.numeric(gsub("X", "", long_billboard$week))
+#note: gsub do a substitution; when see X, change to nothing
+
+ggplot(data = long_billboard, aes(x=week, y=rank, colour = artist, group = track)) + geom_line() + theme(legend.position="bottom")
+```
+
+#Part2 String manipulation(to make the stable more clean)
+
+original setup
+```{r}
+genes <- read_csv("~/Desktop/SISBID-2016-master/data/genes.csv")
+kable(head(genes))
+#Note:kable is similar to head; just change it to a table presentation, easy to read
+```
+
+Look at the data, and change it to a tidy form using gather function
+```{r}
+gather(genes, variable, expr, -id) %>% kable
+```
+
+#important! seperate columns(here you can see how to do string manipulating)
+```{r}
+  genes %>%
+  gather(variable, expr, -id) %>%
+  separate(variable, c("trt", "leftover"), "-") %>%
+  separate(leftover, c("time", "rep"), "\\.") %>% kable
+#note: use"-"to seperate the string into two parts
+#note: use"." to seperate the remaining string into another two parts 
+```
+
+#modify the variable name using gsub
+```{r}
+gtidy <- genes %>%
+  gather(variable, expr, -id) %>%
+  separate(variable, c("trt", "leftover"), "-") %>%
+  separate(leftover, c("time", "rep"), "\\.") %>%
+  mutate(trt = sub("W", "", trt)) %>%
+  mutate(rep = sub("R", "", rep))
+kable(head(gtidy))
+```
+
+#Now we get a clean data. And let's plot it.
+Using the new tidied dataset (`gtidy`), find the mean expression for each combination of id, trt, and time.
+```{r, echo=FALSE, fig.height=3}
+gmean <- gtidy %>% 
+  group_by(id, trt, time) %>% 
+  summarise(expr = mean(expr))
+ggplot(data = gtidy, aes(trt, expr, colour = time)) + 
+         geom_point() + 
+  xlab("Type of modification") + ylab("Expression") + 
+  facet_wrap(~id) +
+  geom_line(data = gmean, aes(group = time))
+```
+
+# Part3 How to get results into a tidy format(broom package)
+```{r}
+ff_long <- gather(french_fries, key = variable, value = 
+                    rating, potato:painty)
+ff_lm <- lm(rating~variable+treatment+time+subject, 
+            data=ff_long)
+glimpse(ff_lm)
+#note: it is really messy data
+```
+
+#tidy data
+```{r}
+ff_lm_tidy <- tidy(ff_lm)
+glimpse(ff_lm_tidy)
+#note: after tidy, it becomes much better
+#note: tidy can get a simplier version
+```
+
+#model diagnostic
+```{r}
+ff_lm_all <- augment(ff_lm)
+glimpse(ff_lm_all)
+#note: compare with tidy, augment can get more information,but tidy data
+```
+
