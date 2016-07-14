@@ -1,0 +1,214 @@
+---
+title: "data wrangling"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+# part1: dplyr
+
+original setup
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+
+```{r, echo = FALSE}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(HLMdiag)
+library(RColorBrewer)
+library(gridExtra)
+library(GGally)
+```
+
+# filter function( filter the part we want)
+```{r}
+data(french_fries, package = "reshape2")
+french_fries %>%
+    filter(subject == 3, time == 1)
+#Note: filter function here to filter subject and time
+```
+
+#Arrange (arrange the ordering of the value)
+
+```{r}
+french_fries %>%
+    arrange(desc(rancid)) %>%
+    head
+#note: here we ordering rancid in a descending way
+```
+
+# Select (select the variable we want)
+
+```{r}
+french_fries %>%
+    select(time, treatment, subject, rep, potato) %>%
+    head
+```
+
+#summarise (use to calculate the statistic)
+( summarise itself is not helpful; but combine with Group_by, it becomes super helpful)
+summarise and group_by
+```{r}
+french_fries %>%
+    group_by(time, treatment) %>%
+    summarise(mean_rancid = mean(rancid), sd_rancid = sd(rancid))
+```
+
+Now, we use these four functions of dplyr to answer five questions
+
+Question1: check data completeness
+
+#check data completeness
+```{r}
+head(french_fries)
+french_fries %>% select(subject, time, treatment) %>% tbl_df() %>%
+count(subject, time) %>% spread(time, n)
+```
+
+#Check completeness with different scales, too
+```{r}
+french_fries %>% 
+  gather(type, rating, -subject, -time, -treatment, -rep) %>%
+  select(subject, time, treatment, type) %>% 
+  tbl_df() %>% 
+  count(subject, time) %>%
+  spread(time, n)
+```
+
+#Change in ratings over weeks, relative to experimental design
+
+```{r fig.show='hide'}
+ff.m <- french_fries %>% 
+  gather(type, rating, -subject, -time, -treatment, -rep)
+ggplot(data=ff.m, aes(x=time, y=rating, colour=treatment)) +
+  geom_point() +
+  facet_grid(subject~type) 
+#Note: the figure is really a messy, we need to summarize them
+```
+
+#clean the data by summarize
+(summarise can show the statistic, make the figure beautiful)
+```{r fig.show='hide'}
+ff.m.av <- ff.m %>% 
+  group_by(subject, time, type, treatment) %>%
+  summarise(rating=mean(rating))
+#note: summarse the mean of rating and the figure will become more beautiful
+ggplot(data=ff.m, aes(x=time, y=rating, colour=treatment)) + 
+  facet_grid(subject~type) +
+  geom_line(data=ff.m.av, aes(group=treatment))
+```
+
+Question2: whether replicates like each other
+
+for potato part
+```{r}
+ffp <- french_fries %>% select(time, treatment, subject, rep, potato) %>% spread(rep, potato)
+#note: select the key variable and then spread into wider form
+ggplot(ffp, aes(x =`1`, y = `2`)) +geom_point()
+```
+
+for all part
+```{r}
+ff_all <- ff.m %>% spread(rep, rating)
+ggplot(ff_all, aes(x =`1`, y = `2`)) + geom_point(aes(color=type))
+```
+
+#part2  working with lots of models(bloom package)
+
+original setup
+
+1. first look at the data
+```{r}
+library(gapminder)
+ggplot(data=gapminder, aes(x=year, y=lifeExp, group=country)) + 
+  geom_line()
+```
+
+2. Using models as exploratory tools
+(fit a line to each one of countries' life expectancies; then use intercept and slope to characterise groups of countries)
+
+# using purrr package
+```{r, echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(purrr)
+```
+
+# look at usa data
+```{r}
+usa <- gapminder %>% filter(country=="United States")
+head(usa)
+ggplot(data=usa, aes(x = year, y = lifeExp)) + geom_point()
+ ggplot(data=usa, aes(x = year, y = lifeExp)) + geom_point() + geom_smooth(method="lm", se=F)
+ lm(lifeExp~year, data=usa)
+```
+
+#How to do parallel modeling and extract the value:
+IMPORTANT! nest, map, unest,bloom package
+ 
+
+##part3 Use biobroom package to analyze biological data
+
+original setup
+```{r}
+source("https://bioconductor.org/biocLite.R")
+biocLite("biobroom")
+library(biobroom)
+data(hammer)
+
+counts <- Biobase::exprs(hammer)
+head(counts)
+```
+
+1. identify differentlially expressed genes(clean data)
+```{r}
+library(edgeR)
+y <- DGEList(counts = counts, group=Biobase::phenoData(hammer)@data$protocol)
+y <- calcNormFactors(y)
+y <- estimateCommonDisp(y)
+y <- estimateTagwiseDisp(y)
+et <- exactTest(y)
+
+glance(et, alpha = 0.05) # glance on DGEExact
+```
+
+2. use tidy and get significance(positive and negative difference)
+
+```{r}
+tet <- tidy(et)
+tet$significant <- tet$p.value < 0.05
+ggplot(data=tet, aes(x=logCPM, y=estimate, colour=significant)) +
+  geom_point(alpha=.1) + facet_wrap(~significant)
+```
+
+
