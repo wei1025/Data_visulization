@@ -1,0 +1,103 @@
+---
+title: "logo plots"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+original setup
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(HLMdiag)
+library(RColorBrewer)
+library(gridExtra)
+library(gglogo)
+```
+
+# how to construct a logo_plots
+
+STEP1 converting sequence to ggplots format(use ggfortify function)
+
+```{r}
+install.packages(seqinr)
+library(seqinr)
+pfam <- read.fasta(file = "~/Desktop/SISBID-2016-master/data/pfam.fasta", as.string=TRUE, seqtype="AA", seqonly=TRUE)
+head(pfam, 3)
+```
+
+```{r}
+library(gglogo)
+ggpfam <- ggfortify(data=data.frame(sequences = unlist(pfam))
+, seq="sequences") %>% filter(between(position, 7, 26))
+head(ggpfam[order(ggpfam$position),], 3)
+```
+
+make a ggplot
+```{r}
+ggplot(data=ggpfam) +
+  geom_logo(aes(x = position, label=element, y = bits, fill=interaction(Water, Polarity))) +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  theme(legend.position= "bottom")
+```
+
+STEP2 geomlogo  position rectangle
+
+- default positioning is `position = "logo"`
+- `position = "classic"` stacks the rectangles on top of each other, ordered from largest to smallest. This comes closest to the traditional sequence logo plot
+- other positions, such as 'stack', 'fill', or 'dodge' work, but might produce strange output.
+
+```{r, echo =FALSE}
+ggplot(data=ggpfam) +
+  geom_logo(aes(x = position, label=element, y = bits, fill=interaction(Water, Polarity)), position = 'classic') +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  ggtitle("position = 'classic'") +
+  theme(legend.position= "bottom")
+```
+
+# Use facetted logo plots(use another example)
+```{r}
+data(sequences, package = "gglogo")
+head(sequences, 3)
+ggseq <- ggfortify(data= sequences, seq = "peptide", treatment = .(class))
+head(ggseq, 3)
+ggplot(data = ggseq) +
+  geom_logo(aes(x = class, y = info, label = element, fill=interaction(Polarity, Water)), alpha = 0.8) +
+  scale_fill_brewer(palette = "Paired") + facet_wrap(~position, ncol=18) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+

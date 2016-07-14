@@ -211,4 +211,6 @@ ggplot(data=tet, aes(x=logCPM, y=estimate, colour=significant)) +
   geom_point(alpha=.1) + facet_wrap(~significant)
 ```
 
+3. limma is usually to microarray data
+
 
