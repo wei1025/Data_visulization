@@ -1,6 +1,6 @@
 ---
 title: "Data_visualization"
-output: html_document
+output: pdf_document
 ---
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
@@ -218,5 +218,9 @@ clrs <- dichromat(hue_pal()(3))
 p + scale_fill_manual("", values=clrs) + theme(legend.position = "none")
 ```
 
-
+#color palettes(usually use Dark2)
+```{r, echo=FALSE, fig.height=7, fig.width=12}
+library(RColorBrewer)
+display.brewer.all()
+```
 
