@@ -18,3 +18,168 @@ plot(cars)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+session set up
+```{r echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+
+```{r echo=FALSE}
+install.packages("edgeR")
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(GGally)
+library(edgeR)
+```
+
+Today we are talking about multivariable data. How to work on the correlation between x, y,z... and pair two of them.
+
+#Part1: scatterplot matrix
+
+#scatterplot matrix(all variable numeric and show all pairs)
+```{r}
+data(flea)
+ggscatmat(flea, columns = 2:4, color = "species") 
+```
+
+#generalized pairs plot--> make any combination of types of plots(look at distribution)
+```{r fig.width=6}
+data(tips, package = "reshape")
+ggpairs(tips[, 1:4])
+```
+
+#an RNA-seq experiment--> use ggscatmat
+can get information for replicates and different observation
+```{r echo=FALSE, fig.width=6, fig.height=6}
+coty <- read_delim("~/Desktop/SISBID-2016-master/data/GSE61857_Cotyledon_normalized.txt.gz",
+  delim="\t", col_types="cddddddddd", 
+  col_names=c("ID", "C_S1_R1", "C_S1_R2", "C_S1_R3", 
+  "C_S2_R1", "C_S2_R2", "C_S2_R3", "C_S3_R1", "C_S3_R2", "C_S3_R3"),
+  skip=1)
+coty <- as.data.frame(coty)
+ggscatmat(coty[sample(1:nrow(coty), 5000),], columns=2:7, alpha=0.1)
+```
+Note: if it is slow, we can sample the observation   coty[sample(1:nrow(coty), 5000),]
+
+The gene we look for: different in treatment and no difference in replicate(show the consistency between replicates and difference between different stage; shortest line in the figure)
+```{r eval=FALSE}
+sub <- coty %>% select(ID, C_S1_R1, C_S1_R2, C_S2_R1, C_S2_R2)
+ggplot(sub, aes(x=C_S1_R1, xend=C_S1_R2, y=C_S2_R1, yend=C_S2_R2)) +
+  geom_segment() + 
+  theme(aspect.ratio = 1)
+```
+
+#part2 parallel coordinate plot(can handle more variable than scatterplot matrix)
+
+#Side-by-side boxplots to par coords
+
+```{r}
+ggparcoord(coty, columns=2:10, scale="globalminmax", boxplot=TRUE,
+           alphaLines=0)
+```
+
+## Parallel coordinates, connect the dots
+In this figure, the line collect dot and show each gene
+figure pattern: flat during replicate; cross among treatment
+```{r eval=F}
+ggparcoord(coty, columns=2:10, scale="globalminmax", 
+           alphaLines=0.1)
+```
+
+# Look at each gene individually(random selection)
+```{r}
+sub <- coty[sample(1:nrow(coty), 6),] %>% 
+  gather(sample, expr, -ID) %>%
+  separate(sample, c("tissue", "stage", "rep")) %>%
+  mutate(stage = as.numeric(substr(stage, 2, 2)))
+#note: sample 6 genes randomly, then gather the information, then seperate information
+
+sub.m <- sub %>% group_by(ID, stage) %>% 
+  summarise(expr = mean(expr))
+```
+
+```{r}
+ggplot(sub, aes(x=stage, y=expr)) + geom_point(alpha=0.4) +
+  facet_wrap(~ID, ncol=3) + 
+  geom_line(data=sub.m, aes(x=stage, y=expr), colour="red")
+```
+
+note: put different genes on one figure
+```{r}
+ggplot(sub, aes(x=stage, y=expr, colour=factor(ID))) + geom_point(alpha=0.4) + geom_line(data=sub.m, aes(x=stage, y=expr, colour=factor(ID)))
+```
+
+## Very important!! Part3 How to figure out signicicant gene(use edgeR package)
+
+setup
+```{r}
+library(edgeR)
+d <- DGEList(counts = coty[,-1], 
+  group = c(rep("S1", 3), rep("S2", 3), rep("S3", 3)), 
+  genes = coty[,1])
+d <- calcNormFactors(d)
+d <- estimateCommonDisp(d)
+d <- estimateTagwiseDisp(d)
+de <- glmFit(d, design=matrix(c(rep(1, 9),
+                                c(1,1,1,0,0,0,0,0,0), 
+                                c(0,0,0,1,1,1,0,0,0)),
+                              ncol=3, byrow=F))
+results <- glmLRT(de)
+top10 <- as.data.frame(topTags(results, n=12))
+```
+
+#look at individual important gene(top12 genes)
+```{r eval=FALSE}
+sub <- coty %>% 
+  gather(sample, expr, -ID) %>%
+  separate(sample, c("tissue", "stage", "rep")) %>%
+  mutate(stage = as.numeric(substr(stage, 2, 2)))
+#note: mutate is calculating the variable
+top10 <- merge(top10, sub, by.x = "genes", by.y = "ID")
+top10.m <- top10 %>% group_by(genes, stage) %>% 
+  summarise(expr = mean(expr))
+ggplot(top10, aes(x=stage, y=expr, colour=genes)) + 
+  geom_point(alpha=0.4) + ylim(c(0,17.5)) +
+  geom_line(data=top10.m, aes(x=stage, y=expr, colour=genes))
+```
+
+#look at genes are very different at two treatment; look in a pairwise way
+
+note: define significance in the following step
+```{r}
+d <- DGEList(counts = coty[,2:7], 
+  group = c(rep("S1", 3), rep("S2", 3)), 
+  genes = coty[,1])
+d <- calcNormFactors(d)
+d <- estimateCommonDisp(d)
+d <- estimateTagwiseDisp(d)
+d <- estimateTrendedDisp(d)
+de <- exactTest(d, pair=c("S1", "S2"), dispersion = "trended")
+sig.tab <- de$table
+sig.tab$genes <- coty$ID
+sig.tab <- sig.tab %>% filter(PValue < 0.01)
+```
+
+note: in this step, can see those genes very different in treatment
+```{r}
+sig.tab <- merge(sig.tab, coty[,1:7], by.x="genes", by.y="ID")
+ggscatmat(sig.tab, columns=5:10, alpha=0.1)
+```
+
+note: using lines to show the significance
+```{r}
+ggparcoord(sig.tab, columns=5:10, scale="globalminmax",
+           alphaLines=0.1)
+```
