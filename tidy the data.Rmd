@@ -216,4 +216,3 @@ ff_lm_all <- augment(ff_lm)
 glimpse(ff_lm_all)
 #note: compare with tidy, augment can get more information,but tidy data
 ```
-
