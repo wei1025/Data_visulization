@@ -1,0 +1,117 @@
+---
+title: "genealogy"
+output: html_document
+---
+
+original setup
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(RColorBrewer)
+library(gridExtra)
+library(ggenealogy)
+```
+
+## overall function--> study pedigree
+
+- `pedigree`: standardized chart used to study human family lines (Coster, 2013)
+- `kinship2`: basic pedigree charts (Therneau, Daniel, Sinnwell, Atkinson, 2015)
+- `ggenealogy`: focused on agronomic genealogical lineages (Rutter, Vanderplas, Cook, Graham 2016)
+
+#example 1--soybean
+```{r}
+data("sbGeneal")
+str(sbGeneal)
+```
+
+STEP1: Conversion to graph structure
+```{r}
+sbIG <- dfToIG(sbGeneal)
+sbIG
+```
+
+STEP2: get basic statistic 
+```{r}
+getBasicStatistics(sbIG)
+```
+
+STEP3: Apply some functions
+
+- shortest path
+- plotting ancestors and descendants
+- plotting distance matrix
+- using interaction
+
+# function1: get shortest path (getPath and plotPath)
+```{r fig.show='hide'}
+pathTN <- getPath("Tokyo", "Narow", sbIG, sbGeneal)
+pathTN
+plotPath(pathTN)
+```
+
+note: plot path for all(the plot is messy)
+```{r}
+plotPathOnAll(pathTN, sbGeneal, sbIG, binVector = 1:6, pathEdgeCol =
+  "seagreen2", nodeSize = 1, pathNodeSize = 3)
+```
+
+#function2: plotting ancestors and descendants(use plotAncDes function)
+```{r}
+plotAncDes("Lee", sbGeneal, mAnc = 6, mDes = 6, vCol = "blue")
+```
+
+#function3: plotting distance matrix(use plotdegmatrix to draw a heatmap)
+```{r fig.show='hide'}
+varieties <- c("Brim", "Bedford", "Calland", "Dillon", "Hood", "Narow",
+  "Pella", "Tokyo", "Young", "Zane")
+plotDegMatrix(varieties, sbIG, sbGeneal, 
+              "Variety", "Variety", "Degree") +
+  ggplot2::scale_fill_continuous(low = "white", high = "darkgreen") +
+  ggplot2::theme(legend.title = ggplot2::element_text(size = 15),
+                 legend.text
+  = ggplot2::element_text(size = 15))
+```
+
+#function4: plot interactions(use a package plotly)
+```{r eval=FALSE}
+plotPathOnAll(pathTN, sbGeneal, sbIG, binVector = 1:6, 
+              pathEdgeCol = "seagreen2", nodeSize = 1, 
+              pathNodeSize = 3,
+   animate = TRUE)
+```
+
+#Part2: how to plot a networks(use geom_net)
+
+orignial setup
+```{r}
+install.packages("geomnet")
+library(geomnet)
+data(blood)
+head(blood$edges, 3)
+head(blood$vertices, 3)
+bloodnet <- left_join(blood$edges, blood$vertices, by=c("from" = "label"))
+```
+
+note: plot the direct network of blook donation
+
+```{r}
+p <- ggplot(data = bloodnet, aes(from_id = from, to_id = to))
+p %>% geom_net(label = TRUE, size = 15, labelcolour="white", vjust=0.5, hjust=0.5, directed=TRUE, arrowgap=0.075) %>% theme_net()
+```
+
+

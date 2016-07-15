@@ -1,0 +1,39 @@
+---
+title: "ggbio:biological data plots"
+output: html_document
+---
+original setup
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+
+```{r, echo = FALSE}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggbio)
+library(biovizBase)
+library(GenomicRanges)
+```
+
+#Part1: Manhattan plot
+if a data has large amount of data points, we can make a special scatter plot
+```{r}
+snp <- read.table(system.file("extdata", "plink.assoc.sub.txt", 
+    package = "biovizBase"), header = TRUE)
+gr.snp <- transformDfToGr(snp, seqnames = "CHR", start = "BP", 
+    width = 1) 
+head(gr.snp)
+```
