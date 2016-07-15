@@ -1,0 +1,175 @@
+---
+title: "interactive_plot"
+output: html_document
+---
+original setup
+```{r echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.height = 4,
+  fig.width = 8,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+```{r echo=FALSE}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(readr)
+library(ggmap)
+library(HLMdiag)
+library(RColorBrewer)
+library(gridExtra)
+library(plotly)
+library(ggvis)
+```
+
+##Part1: ggvis
+```{r}
+library(ggvis)
+data("economics", package = "ggplot2")
+
+ggvis(economics, x=~date, y=~psavert)
+```
+
+```{r}
+economics %>%
+  ggvis(~date, ~psavert) %>%
+  layer_points() %>%
+  layer_smooths()
+```
+
+#make the graph dynamic viewing(use label_smooth function)
+(the input does not need to be static, you can change it and see the dynamic)
+```{r}
+economics %>%
+  ggvis(~date, ~psavert) %>%
+  layer_points() %>%
+  layer_smooths(
+    span = input_slider(0.2, 1),
+    stroke := "red"
+    #when you change color, need to use stroke and a sepcific character
+  )
+```
+
+#make dynamic label
+```{r}
+economics %>%
+  ggvis(~date, ~psavert) %>%
+  layer_points() %>%
+  layer_smooths(
+    span = input_slider(0.2, 1)
+  )
+```
+
+#use a checkbox to switch from linear regression model and the slider function
+```{r eval=FALSE}
+model_type <- input_checkbox(label = "Use loess curve",
+  map = function(val) if(val) "loess" else "lm")
+economics %>%
+  ggvis(~date, ~psavert) %>%
+  layer_points() %>%
+    layer_model_predictions(model = model_type)
+```
+
+#add three button choice(lm or loess or radio button)
+```{r eval=FALSE}
+model_type <- input_radiobuttons(
+  choice = c("linear" = "lm", 
+             "LOESS" = "loess", 
+             "Robust" = "rlm"), 
+              selected = "loess",
+              label = "Model type")
+economics %>%
+  ggvis(~date, ~psavert) %>%
+  layer_points() %>%
+  add_tooltip(all_values, "hover") %>%
+    layer_model_predictions(model = model_type)
+```
+
+# Part2 Add interactive elements to ggplots using plotly
+
+# add the label
+```{r eval=FALSE}
+library(plotly)
+plot_ly(economics, x = date, y = unemploy / pop)
+```
+
+# add the label using ggplot2
+```{r}
+ggplot(data=economics, aes(x = date, y = unemploy / pop)) +  
+        geom_point() + geom_line()
+```
+
+```{r}
+ggplotly()
+```
+
+#use ggally to get pairs of dynamic graph(ggpairs first and then use ggplotly)
+```{r}
+library(GGally)
+p <- ggpairs(economics[,3:6])
+ggplotly(p)
+```
+
+#make a map
+```{r}
+data(canada.cities, package = "maps")
+viz <- ggplot(canada.cities, aes(long, lat)) +
+  borders(regions = "canada") +
+  coord_equal() +
+  geom_point(aes(text = name, size = pop), colour = "red", alpha = 1/2)
+ ggplotly(viz)
+```
+
+# Part3 use interactive plot to analyze RNA-seq data
+
+original setup
+```{r echo=FALSE}
+library(edgeR)
+coty <- read_delim("~/Desktop/SISBID-2016-master/data/GSE61857_Cotyledon_normalized.txt.gz",
+  delim="\t", col_types="cddddddddd", 
+  col_names=c("ID", "C_S1_R1", "C_S1_R2", "C_S1_R3", 
+  "C_S2_R1", "C_S2_R2", "C_S2_R3", "C_S3_R1", "C_S3_R2", "C_S3_R3"),
+  skip=1)
+coty <- as.data.frame(coty)
+d <- DGEList(counts = coty[,2:7], 
+  group = c(rep("S1", 3), rep("S2", 3)), 
+  genes = coty[,1])
+d <- calcNormFactors(d)
+d <- estimateCommonDisp(d)
+d <- estimateTagwiseDisp(d)
+d <- estimateTrendedDisp(d)
+de <- exactTest(d, pair=c("S1", "S2"), dispersion = "trended")
+sig.tab <- de$table
+sig.tab$genes <- coty$ID
+sig.tab <- dplyr::filter(sig.tab, PValue < 0.01)
+sig.tab <- merge(sig.tab, coty[,1:7], by.x="genes", by.y="ID")
+ggscatmat(sig.tab, columns=5:10, alpha=0.1)
+```
+
+# dynamic label a specific gene in the graph
+```{r fig.width=4, fig.height=4}
+p <- ggplot(sig.tab, aes(x=C_S1_R2, y=C_S2_R1, label=genes)) +
+  geom_point(alpha=0.1) 
+ggplotly(p)
+```
+note: so when we show this in the presentation, we can see dot directly. then we can extract the information and plot a interactive plot.
+
+#anothe example
+all plots here are made in ggblot2; just make it into interactive preface.
+```{r eval=FALSE}
+install.packages("eechidna")
+library(eechidna)
+launchApp(
+  age = c("Age20_24", "Age85plus"),
+  religion = c("Christianity", "Catholic", "NoReligion"),
+  other = c("Unemployed", "Population", "MedianIncome")
+)
+```
